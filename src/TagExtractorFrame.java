@@ -4,8 +4,10 @@ import java.awt.event.ActionEvent;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.jar.JarEntry;
+
 
 import static java.nio.file.StandardOpenOption.CREATE;
 
@@ -16,6 +18,10 @@ public class TagExtractorFrame extends JFrame
 
     private Map<String, Integer> tagFrequencyMap = new TreeMap<>();
     private Set<String> stopWords = new TreeSet<>();
+
+    File workingDirectory = new File(System.getProperty("user.dir"));
+    String fileName = "FrequenciesResults";
+    String record = "";
     Iterator<String> stopWordsIterator = stopWords.iterator();
     String rec = "";
     Toolkit kit = Toolkit.getDefaultToolkit();
@@ -34,7 +40,7 @@ public class TagExtractorFrame extends JFrame
     JButton chooseWordsToExtract;
     JButton chooseFileToRead;
     JButton quit;
-    JButton extractAndCount;
+    JButton saveFrequenciesToFile;
     JLabel tagExtractorLabel;
 
 
@@ -72,7 +78,7 @@ public class TagExtractorFrame extends JFrame
     {
         topPanel = new JPanel();
 
-        tagExtractorLabel = new JLabel("Fortune Teller", JLabel.CENTER);
+        tagExtractorLabel = new JLabel("Tag Extractor", JLabel.CENTER);
         tagExtractorLabel.setVerticalTextPosition(JLabel.BOTTOM);
         tagExtractorLabel.setHorizontalTextPosition(JLabel.CENTER);
         tagExtractorLabel.setFont(new Font("Arial", Font.PLAIN, 48));
@@ -94,9 +100,9 @@ public class TagExtractorFrame extends JFrame
         bottomPanel = new JPanel();
         bottomPanel.setLayout(new GridLayout(2, 3));
 
-        chooseFileToRead = new JButton("Choose a file to read");
-        chooseWordsToExtract = new JButton("Choose a text file with the words to extract");
-        extractAndCount = new JButton("Extract and count words");
+        chooseFileToRead = new JButton("Choose a file to read and begin tag extraction");
+        chooseWordsToExtract = new JButton("Choose a text file with the noise words to ignore");
+        saveFrequenciesToFile = new JButton("Save frequencies to a file");
         quit = new JButton("Quit");
         //Change this to edit the button:
 //        readMyFortune.setFont(new Font("Verdana", Font.PLAIN, 20));
@@ -104,22 +110,31 @@ public class TagExtractorFrame extends JFrame
 
         bottomPanel.add(chooseFileToRead);
         bottomPanel.add(chooseWordsToExtract);
-        bottomPanel.add(extractAndCount);
         bottomPanel.add(quit);
-
+        bottomPanel.add(saveFrequenciesToFile);
 
         chooseFileToRead.addActionListener((ActionEvent ae) ->
         {
             readFile();
-
-            System.out.println(tagFrequencyMap);
+            tagsDisplay.append("File Name: " + selectedFile.getName() + "\n");
+            for(String key : tagFrequencyMap.keySet())
+            {
+                record = "Word: "+ "'" + key + "'";
+                tagsDisplay.append(record);
+                record = " | Frequency: " + tagFrequencyMap.get(key) + "\n";
+                tagsDisplay.append(record);
+            }
 
         });
 
         chooseWordsToExtract.addActionListener((ActionEvent ae) ->
         {
             loadFilterWords();
-            System.out.println(stopWords);
+        });
+
+        saveFrequenciesToFile.addActionListener((ActionEvent ae) ->
+        {
+            saveToFile();
         });
 
         quit.addActionListener((ActionEvent ae) -> System.exit(0));
@@ -133,6 +148,7 @@ public class TagExtractorFrame extends JFrame
             File workingDirectory = new File(System.getProperty("user.dir"));
             chooser.setCurrentDirectory(workingDirectory);
 
+
             if(chooser.showOpenDialog(null) == JFileChooser.APPROVE_OPTION)
             {
                 selectedFile = chooser.getSelectedFile();
@@ -141,22 +157,26 @@ public class TagExtractorFrame extends JFrame
                         new BufferedInputStream(Files.newInputStream(file, CREATE));
                 BufferedReader reader =
                         new BufferedReader(new InputStreamReader(in));
+                stopWords.clear();
 
                 int line = 0;
 
                 while(reader.ready())
                 {
-                    rec = reader.readLine();
+                    rec = reader.readLine().toLowerCase();
                     line++;
                     stopWords.add(rec);
                 }
                 reader.close(); // must close the file to seal it and flush buffer
+                JOptionPane.showMessageDialog(null, "Noise words loaded!",
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
 
             }
             else
             {
                 //Refactor to a message
-                System.out.println("You didnt choose a file! Run the program again and choose a file!");
+                JOptionPane.showMessageDialog(null, "You didnt choose a file!",
+                        "Task Failed", JOptionPane.INFORMATION_MESSAGE);
             }
 
         }
@@ -187,11 +207,13 @@ public class TagExtractorFrame extends JFrame
                 BufferedReader reader =
                         new BufferedReader(new InputStreamReader(in));
 
+                tagFrequencyMap.clear();
                 int line = 0;
 
                 while(reader.ready())
                 {
-                    rec = reader.readLine();
+                    rec = reader.readLine().toLowerCase();
+                    rec = rec.replaceAll("[^a-zA-Z]", " ");
                     line++;
                     String[] fields = rec.split(" ");
                         for(int i = 0; i < fields.length; i++)
@@ -211,17 +233,16 @@ public class TagExtractorFrame extends JFrame
                             }
                         }
                 }
-                for(String key : tagFrequencyMap.keySet())
-                {
-                    System.out.println("Key: " + key);
-                    System.out.println("Value: " + tagFrequencyMap.get(key) + "\n");  // get(Key) returns the value
-                }
+                tagFrequencyMap.remove("");
                 reader.close(); // must close the file to seal it and flush buffer
+                JOptionPane.showMessageDialog(null, "Data file read and tag words extracted!",
+                        "Success", JOptionPane.INFORMATION_MESSAGE);
             }
             else
             {
                 //Refactor to a message
-                System.out.println("You didnt choose a file! Run the program again and choose a file!");
+                JOptionPane.showMessageDialog(null, "You didnt choose a file!",
+                        "Task Failed", JOptionPane.INFORMATION_MESSAGE);
             }
         }
         catch (FileNotFoundException e)
@@ -233,5 +254,33 @@ public class TagExtractorFrame extends JFrame
         {
             e.printStackTrace();
         }
+    }
+    private void saveToFile()
+    {
+        System.out.println();
+        Path file = Paths.get(workingDirectory.getPath() + "\\" + fileName + ".txt");
+        try
+        {
+            OutputStream out =
+                    new BufferedOutputStream(Files.newOutputStream(file, CREATE));
+            BufferedWriter writer =
+                    new BufferedWriter(new OutputStreamWriter(out));
+
+            for(String key : tagFrequencyMap.keySet())
+            {
+                record = "Word: "+ "'" + key + "'";
+                writer.write(record, 0, record.length());
+                record = " | Frequency: " + tagFrequencyMap.get(key) + "\n";
+                writer.write(record, 0, record.length());
+            }
+            writer.close();
+            JOptionPane.showMessageDialog(null, "Data File Written!",
+                    "Success", JOptionPane.INFORMATION_MESSAGE);
+        }
+        catch (IOException e)
+        {
+            e.printStackTrace();
+        }
+
     }
 }

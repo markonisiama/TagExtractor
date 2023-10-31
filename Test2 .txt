@@ -1,0 +1,1 @@
+One way of looking at a document and comparing documents is to examine the frequency in which words occur.  For instance, we would assume that an article with the word UFO in it many times is probably about UFOs… A document that does not contain the word would not be. (Early search engines used this approach to determine the documents to include in search results.)
